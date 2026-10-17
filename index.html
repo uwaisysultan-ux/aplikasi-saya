@@ -170,7 +170,100 @@ async function start(){
   render();
 }
 start();
-})();
+})();<!-- Integration Script Firebase & PIN Ustadz -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { 
+    getFirestore, 
+    collection, 
+    addDoc, 
+    onSnapshot, 
+    serverTimestamp 
+  } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+  // Konfigurasi Firebase milik Anda
+  const firebaseConfig = {
+    apiKey: "AIzaSyAjy_3FtYnxqfCPznmc9dRQ3ONQomBd_TU",
+    authDomain: "uwaisysultan-app.firebaseapp.com",
+    projectId: "uwaisysultan-app",
+    storageBucket: "uwaisysultan-app.firebasestorage.app",
+    messagingSenderId: "506156702952",
+    appId: "1:506156702952:web:f0531bcc4dc6dc78767d5d",
+    measurementId: "G-JZ8L9JLN06"
+  };
+
+  // Inisialisasi Database
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // Tentukan PIN Ustadz di sini (Default: 123456)
+  const PIN_USTADZ_BENAR = "123456"; 
+
+  // Fungsi Verifikasi PIN Ustadz
+  window.verifikasiPinUstadz = function() {
+    const inputPin = document.getElementById("inputPinUstadz") ? document.getElementById("inputPinUstadz").value : "";
+    
+    if (inputPin === PIN_USTADZ_BENAR) {
+      alert("Akses Ustadz Berhasil!");
+      if(document.getElementById("loginUstadzSection")) {
+        document.getElementById("loginUstadzSection").style.display = "none";
+      }
+      if(document.getElementById("dashboardUstadzSection")) {
+        document.getElementById("dashboardUstadzSection").style.display = "block";
+      }
+      muatDataIbadahUstadz();
+    } else {
+      alert("PIN Ustadz Salah! Silakan coba lagi.");
+    }
+  };
+
+  // Fungsi Simpan Ibadah Anggota ke Firebase
+  window.simpanIbadahAnggota = async function() {
+    const nama = document.getElementById("namaAnggota") ? document.getElementById("namaAnggota").value : "";
+    const jumlahIbadah = document.getElementById("jumlahIbadah") ? document.getElementById("jumlahIbadah").value : 0;
+
+    if (!nama || !jumlahIbadah) {
+      alert("Mohon isi nama dan jumlah ibadah!");
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, "mutabaah_ibadah"), {
+        nama: nama,
+        jumlahIbadah: parseInt(jumlahIbadah),
+        waktu: serverTimestamp()
+      });
+      alert("Alhamdulillah, data ibadah berhasil disimpan!");
+      if(document.getElementById("formIbadah")) {
+        document.getElementById("formIbadah").reset();
+      }
+    } catch (error) {
+      console.error("Gagal menyimpan data:", error);
+      alert("Gagal menyimpan data ibadah. Coba lagi!");
+    }
+  };
+
+  // Fungsi Load Data Realtime ke Dashboard Ustadz
+  function muatDataIbadahUstadz() {
+    const tabelBody = document.getElementById("tabelIbadahBody");
+    if(!tabelBody) return;
+
+    onSnapshot(collection(db, "mutabaah_ibadah"), (snapshot) => {
+      tabelBody.innerHTML = "";
+      let nomor = 1;
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        const row = `
+          <tr>
+            <td>${nomor++}</td>
+            <td>${data.nama || "-"}</td>
+            <td>${data.jumlahIbadah || 0}</td>
+          </tr>
+        `;
+        tabelBody.innerHTML += row;
+      });
+    });
+  }
 </script>
 </body>
 </html>
