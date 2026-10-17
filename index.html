@@ -69,19 +69,19 @@ td.c{font-size:.78rem}
 var FIREBASE_CONFIG={apiKey:"AIzaSyAjy_3FtYnxqfCPznmc9dRQ3ONQomBd_TU",authDomain:"uwaisysultan-app.firebaseapp.com",projectId:"uwaisysultan-app",storageBucket:"uwaisysultan-app.firebasestorage.app",messagingSenderId:"506156702952",appId:"1:506156702952:web:f0531bcc4dc6dc78767d5d",measurementId:"G-JZ8L9JLN06"};
 (function(){
 var DEF=[{id:"k1",name:"Shalat berjamaah",unit:"kali",daily:3,weekly:21,max:5},{id:"k2",name:"Tilawah",unit:"lembar",daily:5,weekly:35,max:100},{id:"k3",name:"Shalat Tahajud",unit:"kali",daily:0,weekly:1,max:1},{id:"k4",name:"Shalat Dhuha",unit:"kali",daily:0,weekly:1,max:1},{id:"k5",name:"Puasa sunnah",unit:"kali",daily:0,weekly:1,max:1},{id:"k6",name:"Baca buku pengetahuan",unit:"kali",daily:0,weekly:1,max:1}];
-var app=document.getElementById("app"),db=null,fs=null,D={members:{},reports:{},cfg:{}},V={who:null,week:mon(new Date()),day:0,view:"login",err:""},LS="tz-data-v3",SS="tz-session-v3";
+var app=document.getElementById("app"),db=null,fs=null,MODE="",D={members:{},reports:{},cfg:{}},V={who:null,week:mon(new Date()),day:0,view:"login",err:""},LS="tz-data-v3",SS="tz-session-v3";
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function mon(d){var x=new Date(d);x.setHours(12,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return x}
 function add(d,n){var x=new Date(d);x.setDate(x.getDate()+n);return x}
 function key(d){var m=d.getMonth()+1,x=d.getDate();return d.getFullYear()+"-"+(m<10?"0":"")+m+"-"+(x<10?"0":"")+x}
-var fd=new Intl.DateTimeFormat("id-ID",{day:"numeric",month:"short"}),fs=new Intl.DateTimeFormat("id-ID",{weekday:"short"});
+var fd=new Intl.DateTimeFormat("id-ID",{day:"numeric",month:"short"}),fw=new Intl.DateTimeFormat("id-ID",{weekday:"short"});
 function items(){return D.cfg.items2&&D.cfg.items2.length?D.cfg.items2:DEF}
 async function hash(s){try{var b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode("tz|"+s));return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,"0")}).join("")}catch(e){return"p|"+s}}
 function lget(){try{return JSON.parse(localStorage.getItem(LS))||{}}catch(e){return{}}}
 var SEED=[["Ayah","30f4874cf6ed617c71c8c5dcdbc417136663dc0a92341f5c40019d9f2fbfc610"],["Ibu","bfdd76b0f8e5a869c85855f7cfa11abcf6e72e8578d9b9a7d25da3bc72fd2dd4"],["Marsya","07fc2a36106531eaca6ec65536c11e8fc5d1d0a286e9df0af5600eb000e144e1"],["Azzahra","66cb9ba2cdd9d8cbd3ead27f6b1a8e04c291d541d1e88d8d718ea715fbdabf45"],["Uwaisy","0c5748e30d66778ee3e22f460074285f08f4806d18c0b45d2048a55b4f246f7b"],["Sultan","fd1120c5001ca5f1b535d0d664f73c606dd6b1bec99f05e6abc1204eed4b3c3c"],["Aliya","bc04b8d6df99edada1d9193b895f6363a6a519bdc0874aeaa457d71a89d28be4"]],ADMIN="b870898db249a782261064979684982f4bc563787b9fff5cc8c82ce84de8b58e";
 async function seed(){
   for(var i=0;i<SEED.length;i++)await put("members","m"+(i+1),{name:SEED[i][0],pin:SEED[i][1]});
-  await put("cfg","main",Object.assign({},D.cfg,{pw:ADMIN}));
+  await put("cfg","main",Object.assign({},D.cfg,{pw:D.cfg.pw||ADMIN,seeded:1}));
 }
 async function load(){
   if(fs){var a=await fs.collection("members").get(),b=await fs.collection("reports").get(),c=await fs.doc("config/main").get();
@@ -89,7 +89,7 @@ async function load(){
   else if(db){var a2=await db.collection("members").get(),b2=await db.collection("reports").get(),c2=await db.doc("config/main").get();
     D={members:{},reports:{},cfg:c2.exists?c2.data():{}};a2.docs.forEach(function(d){D.members[d.id]=d.data()});b2.docs.forEach(function(d){D.reports[d.id]=d.data()})}
   else{var o=lget();D={members:o.members||{},reports:o.reports||{},cfg:o.cfg||{}}}
-  if(!db&&!D.cfg.pw)await seed();
+  if(!db&&!D.cfg.seeded)await seed();
 }
 async function put(kind,id,data){
   if(data===null)delete D[kind][id];else if(kind==="cfg")D.cfg=data;else D[kind][id]=data;
@@ -111,9 +111,9 @@ function save(){try{if(V.who)sessionStorage.setItem(SS,V.who)}catch(e){}}
 function loginView(){
   var ms=Object.keys(D.members).sort(function(a,b){return D.members[a].name.localeCompare(D.members[b].name)});
   var o='<option value="">— Pilih nama —</option>'+ms.map(function(k){return'<option value="'+esc(k)+'">'+esc(D.members[k].name)+'</option>'}).join("");
-  app.innerHTML='<div class="login"><div class="em">🕌</div><h1>Monitoring Tarbiyah Zatiyah</h1><p>Halaqah Pekanan</p><form class="card" id="f"><h2>Masuk ke Akun</h2><label class="l">Pilih nama</label><select id="n">'+o+'</select><label class="l">PIN (4 digit)</label><input id="p" type="password" inputmode="numeric" maxlength="4" autocomplete="off"><p class="err">'+esc(V.err)+'</p><button class="btn">Masuk</button><button type="button" class="lk" id="u">Masuk sebagai Ustaz / Ketua</button></form></div>';
+  app.innerHTML='<div class="login"><div class="em">🕌</div><h1>Monitoring Tarbiyah Zatiyah</h1><p>Halaqah Pekanan</p><form class="card" id="f"><h2>Masuk ke Akun</h2><label class="l">Pilih nama</label><select id="n">'+o+'</select><label class="l">PIN (4 digit)</label><input id="p" type="password" inputmode="numeric" maxlength="4" autocomplete="off"><p class="err">'+esc(V.err)+'</p><button class="btn">Masuk</button><button type="button" class="lk" id="u">Masuk sebagai Ustaz / Ketua</button></form><p class="mu">Versi 4 · '+esc(MODE)+'</p></div>';
   if(!ms.length)app.querySelector(".err").textContent="Belum ada anggota. Ustaz perlu menambahkan anggota lebih dulu.";
-  document.getElementById("f").onsubmit=async function(e){e.preventDefault();var id=document.getElementById("n").value,p=document.getElementById("p").value;
+  document.getElementById("f").onsubmit=async function(e){e.preventDefault();var id=document.getElementById("n").value,p=document.getElementById("p").value.trim();
     if(!id||!/^\d{4}$/.test(p)){V.err="Pilih nama dan isi PIN 4 digit.";return loginView()}
     if(D.members[id].pin!==await hash(p)){V.err="PIN salah.";return loginView()}
     V.who=id;V.err="";V.view="member";save();render()};
@@ -123,7 +123,7 @@ function ustazLogin(){
   var first=!D.cfg.pw;
   app.innerHTML='<div class="login"><div class="em">🎓</div><h1>Login Admin / Ustaz</h1><p>'+(first?"Belum ada PIN admin. Buat PIN admin untuk pertama kali.":"Halaqah Pekanan")+'</p><form class="card" id="f"><label class="l">'+(first?"Buat PIN admin (minimal 4 karakter)":"PIN Admin")+'</label><input id="p" type="password" inputmode="numeric" autocomplete="off"><p class="err">'+esc(V.err)+'</p><button class="btn">'+(first?"Simpan dan masuk":"Masuk sebagai Ustaz")+'</button><button type="button" class="lk" id="b">← Kembali</button></form></div>';
   document.getElementById("b").onclick=function(){V.err="";V.view="login";render()};
-  document.getElementById("f").onsubmit=async function(e){e.preventDefault();var p=document.getElementById("p").value;
+  document.getElementById("f").onsubmit=async function(e){e.preventDefault();var p=document.getElementById("p").value.trim();
     if(first){if(p.length<4){V.err="PIN admin minimal 4 karakter.";return ustazLogin()}await put("cfg","main",Object.assign({},D.cfg,{pw:await hash(p)}))}
     else if(D.cfg.pw!==await hash(p)){V.err="PIN admin salah.";return ustazLogin()}
     V.who="ustaz";V.err="";V.view="ustaz";save();render()};
@@ -135,8 +135,8 @@ function bindOut(){document.getElementById("out").onclick=function(){V.who=null;
 function memberView(){
   var m=V.who,its=items(),w=V.week,dk=key(add(w,V.day)),wp=wpct(m,w);
   var h=top(D.members[m].name)+nav()+'<div class="card"><div class="big"><b>'+wp+'%</b><span class="mu">capaian target pekan ini</span></div><div class="pb"><i style="width:'+wp+'%"></i></div>'+its.map(function(x){var q=wsum(m,w,x.id);return'<div style="margin-top:12px"><div class="fl2"><span>'+esc(x.name)+'</span><span class="mu">'+q+' / '+x.weekly+' '+esc(x.unit)+'</span></div><div class="pb"><i style="width:'+Math.min(100,q/x.weekly*100)+'%"></i></div></div>'}).join("")+'</div><div class="days">';
-  for(var i=0;i<7;i++){var d=add(w,i),a=its.some(function(x){return cnt(m,w,i,x.id)>0});h+='<button class="dy'+(i===V.day?" sel":"")+'" data-i="'+i+'"><i>'+fs.format(d)+'</i><b>'+d.getDate()+'</b><i>'+(a?"✓":"·")+'</i></button>'}
-  h+='</div><div class="card"><h2>Catatan '+fs.format(add(w,V.day))+', '+fd.format(add(w,V.day))+'</h2>'+its.map(function(x){var c=cnt(m,w,V.day,x.id),ok=x.daily&&c>=x.daily;return'<div class="row'+(ok?" done":"")+'"><div style="flex:1"><div>'+esc(x.name)+'</div><div class="mu">Target '+esc(tgt(x))+'</div></div><div class="ctr"><button class="ic" data-m="'+esc(x.id)+'" aria-label="Kurangi '+esc(x.name)+'">−</button><b>'+c+'</b><button class="ic" data-p="'+esc(x.id)+'" aria-label="Tambah '+esc(x.name)+'">+</button></div></div>'}).join("")+'</div><div class="card"><h2>Muhasabah pekan ini</h2><textarea id="nt" placeholder="Apa yang sudah baik? Apa yang perlu diperbaiki?">'+esc(rep(m,w).note||"")+'</textarea></div><p class="err">'+esc(V.err)+'</p>';
+  for(var i=0;i<7;i++){var d=add(w,i),a=its.some(function(x){return cnt(m,w,i,x.id)>0});h+='<button class="dy'+(i===V.day?" sel":"")+'" data-i="'+i+'"><i>'+fw.format(d)+'</i><b>'+d.getDate()+'</b><i>'+(a?"✓":"·")+'</i></button>'}
+  h+='</div><div class="card"><h2>Catatan '+fw.format(add(w,V.day))+', '+fd.format(add(w,V.day))+'</h2>'+its.map(function(x){var c=cnt(m,w,V.day,x.id),ok=x.daily&&c>=x.daily;return'<div class="row'+(ok?" done":"")+'"><div style="flex:1"><div>'+esc(x.name)+'</div><div class="mu">Target '+esc(tgt(x))+'</div></div><div class="ctr"><button class="ic" data-m="'+esc(x.id)+'" aria-label="Kurangi '+esc(x.name)+'">−</button><b>'+c+'</b><button class="ic" data-p="'+esc(x.id)+'" aria-label="Tambah '+esc(x.name)+'">+</button></div></div>'}).join("")+'</div><div class="card"><h2>Muhasabah pekan ini</h2><textarea id="nt" placeholder="Apa yang sudah baik? Apa yang perlu diperbaiki?">'+esc(rep(m,w).note||"")+'</textarea></div><p class="err">'+esc(V.err)+'</p>';
   app.innerHTML=h;bindNav();bindOut();
   app.querySelectorAll(".dy").forEach(function(b){b.onclick=function(){V.day=+b.dataset.i;render()}});
   app.querySelectorAll("[data-m],[data-p]").forEach(function(b){b.onclick=async function(){
@@ -177,7 +177,7 @@ function render(){
 }
 async function start(){
   try{if(FIREBASE_CONFIG&&window.firebase){firebase.initializeApp(FIREBASE_CONFIG);fs=firebase.firestore()}else if(window.claude&&claude.use)db=await claude.use("db")}catch(e){db=null;fs=null}
-  try{await load()}catch(e){db=null;fs=null;await load()}
+  try{await Promise.race([load(),new Promise(function(_,j){setTimeout(function(){j({code:"timeout"})},10000)})]);MODE=fs?"terhubung ke Firebase":(db?"database claude.ai":"mode lokal")}catch(e){MODE="mode lokal, Firebase gagal ("+((e&&(e.code||e.message))||"error")+")";db=null;fs=null;await load()}
   try{var s=sessionStorage.getItem(SS);if(s==="ustaz"){V.who=s;V.view="ustaz"}else if(s&&D.members[s]){V.who=s;V.view="member"}}catch(e){}
   var t=new Date(),dow=(t.getDay()+6)%7;V.day=dow;
   render();
